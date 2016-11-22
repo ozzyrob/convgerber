@@ -63,7 +63,7 @@ struct gconv_glb {
 	int status;
 	char *input_filename;
 	char *output_filename;
-	char *aperature_filename;
+	char *aperture_filename;
 };                       
 
 /**
@@ -100,7 +100,7 @@ int GCONV_init( struct gconv_glb *glb )
 	glb->status = 0;
 	glb->input_filename = NULL;
 	glb->output_filename = NULL;
-	glb->aperature_filename = "aperture.dat";
+	glb->aperture_filename = "aperture.dat";
 
 	return 0;
 }
@@ -124,7 +124,7 @@ int GCONV_write_header( FILE *fo )
   * Writer header to converted gerber file
   * 
   */
-int GCONV_write_aperatures( FILE *fo, FILE *fa )
+int GCONV_write_apertures( FILE *fo, FILE *fa )
 {
 		int aperture_read;
 		while (  ( aperture_read = fgetc(fa) ) != EOF ) { 
@@ -221,11 +221,11 @@ int main(int argc, char **argv) {
 		return 3;
 	}
 
-	/* Attempt to open the aperature file as read-only 
+	/* Attempt to open the aperture file as read-only 
 	 */
-	fa = fopen(glb.aperature_filename,"r");
+	fa = fopen(glb.aperture_filename,"r");
 	if (!fa) {
-		fprintf(stderr,"Cannot open aperature file '%s' for reading (%s)\n", glb.aperature_filename, strerror(errno));
+		fprintf(stderr,"Cannot open aperture file '%s' for reading (%s)\n", glb.aperture_filename, strerror(errno));
 		return 4;
 	}
 
@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
 		return 5;
 	}
 	GCONV_write_header (fo);
-	GCONV_write_aperatures(fo ,fa);
+	GCONV_write_apertures(fo ,fa);
 	
 	//* Read source file a character at a time
 		 while (  ( gerber_read = fgetc(fi) ) != EOF ) {
