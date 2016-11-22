@@ -41,6 +41,7 @@ char  GCONV_HEADER[] = "G04 This is a Protel Autotrax gerber file converted by *
                        "%MOIN*%\n"
                        "%FSLAX23Y23*%\n"
                        "%IPPOS*%";
+char GCONV_FILE_SIG[] = "X0Y0*";                       
 char APT_LIST_START[] = "G04 APERTURE LIST*\n";
 char APT_LIST_END[] = "G04 APERTURE END LIST*\n";             
                        
@@ -121,6 +122,23 @@ int GCONV_write_header( FILE *fo )
 }
 
 /**
+  * GCONV_check_input_file
+  *
+  * Check if input file is a Protel file
+  * First 5 bytes should be "X0Y0*"
+  * Last byte should be BS (0x08)
+  * 
+  */
+int GCONV_check_input_file( FILE *fi )
+{
+	char file_sig[6];
+//* File should start with X0Y0*
+	fgets( file_sig, 6, fi);
+	fseek (fi, 0, SEEK_SET);
+	return ( strcmp ( GCONV_FILE_SIG, file_sig ) );
+}
+
+/**
   * GCONV_write_apperatures
   *
   * Writer header to converted gerber file
@@ -197,6 +215,8 @@ int main(int argc, char **argv) {
 	struct gconv_glb glb;
 	FILE *fi, *fo, *fa;
 	int gerber_read;
+	int file_check;
+	int curr_pos;
 	
 	/* Initialize our global data structure */
 	GCONV_init(&glb);
@@ -218,18 +238,27 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 	
-
+	/* Attempt to open input file as read only
+	 */ 
 	fi = fopen(glb.input_filename,"r");
 	if (!fi) {
-		fprintf(stderr,"Cannot open input file '%s' for reading (%s)\n", glb.input_filename, strerror(errno));
+		fprintf(stderr,"Error: Cannot open input file '%s' for reading (%s)\n", glb.input_filename, strerror(errno));
 		return 3;
 	}
-
+	
+	/* Check if input file has a valid signature first 5 chars X0Y0*
+	 */
+	file_check = GCONV_check_input_file( fi );
+	if  ( file_check != 0 )  {
+		fprintf( stderr, "Error: %s does not appear to be a valid Autotrax gerber file\n", glb.input_filename );
+		return 6;
+	}
+	
 	/* Attempt to open the aperture file as read-only 
 	 */
 	fa = fopen(glb.aperture_filename,"r");
 	if (!fa) {
-		fprintf(stderr,"Cannot open aperture file '%s' for reading (%s)\n", glb.aperture_filename, strerror(errno));
+		fprintf(stderr,"Error: Cannot open aperture file '%s' for reading (%s)\n", glb.aperture_filename, strerror(errno));
 		return 4;
 	}
 
@@ -239,9 +268,11 @@ int main(int argc, char **argv) {
 		*/
 	fo = fopen(glb.output_filename,"w");
 	if (!fo) {
-		fprintf(stderr,"Cannot open output file '%s' for writing (%s)\n", glb.output_filename, strerror(errno));
+		fprintf(stderr,"Error: Cannot open output file '%s' for writing (%s)\n", glb.output_filename, strerror(errno));
 		return 5;
 	}
+	
+
 	GCONV_write_header (fo);
 	GCONV_write_apertures(fo ,fa);
 	
@@ -253,8 +284,7 @@ int main(int argc, char **argv) {
 					
 //* If we have "*" write "*\n" to destination file					
 					case GERBER_TERM:
-						fputc( GERBER_TERM, fo );
-						fputc( LF, fo );
+						fprintf(fo, "*\n"); 
 						break;
 //* Ignore Backspace, Line feed (newline), Form feed, Carriage return & space
 					case BS :
@@ -264,13 +294,32 @@ int main(int argc, char **argv) {
 					case SPACE :
 						break;
 //* Write X,Y, cordinates, D-codes, to destination file
-//* Should check for "illegal characters"						
-					default :
+//* Should check for "illegal characters"
+					case 'X' :
+					case 'Y' :
+					case 'M' :
+					case 'D' :
+					case '0' :
+					case '1' :
+					case '2' :
+					case '3' :
+					case '4' :
+					case '5' :
+					case '6' :
+					case '7' :
+					case '8' :
+					case '9' :
 						fputc( gerber_read, fo );
+						break;
+					default :
+						curr_pos=(ftell(fi) -1);
+						fprintf( stderr, "Error: Illegal character found.\n Hex value = 0x%.2x\n At position 0x%.8x\n", gerber_read, curr_pos);
+						return 7;
 					}
 			}
 	fclose(fo);
 	fclose(fi);
 	fclose(fa);
+	printf("Autotrax file successfully converted\n");
 	return 0;
 }	
