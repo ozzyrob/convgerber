@@ -41,6 +41,8 @@ char  GCONV_HEADER[] = "G04 This is a Protel Autotrax gerber file converted by *
                        "%MOIN*%\n"
                        "%FSLAX23Y23*%\n"
                        "%IPPOS*%";
+char APT_LIST_START[] = "G04 APERTURE LIST*\n";
+char APT_LIST_END[] = "G04 APERTURE END LIST*\n";             
                        
 char GCONV_HELP[]="convgerber: Protel gerber file converter\n"
 	"Written by Robert Murphy.\n"
@@ -127,11 +129,13 @@ int GCONV_write_header( FILE *fo )
 int GCONV_write_apertures( FILE *fo, FILE *fa )
 {
 		int aperture_read;
+		fprintf( fo, APT_LIST_START );
+		
 		while (  ( aperture_read = fgetc(fa) ) != EOF ) { 
 			
 			fputc( aperture_read, fo );
 		}
-
+		fprintf( fo, APT_LIST_END );
 	return 0;
 }
 /**
