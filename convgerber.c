@@ -43,7 +43,10 @@ char  GCONV_HEADER[] = "G04 This is a Protel Autotrax gerber file converted by *
                        "%IPPOS*%";
 char GCONV_FILE_SIG[] = "X0Y0*";                       
 char APT_LIST_START[] = "G04 APERTURE LIST*\n";
-char APT_LIST_END[] = "G04 APERTURE END LIST*\n";             
+char APT_LIST_END[] = "G04 APERTURE END LIST*\n";
+char LAYER_POLARITY_DARK[] = "G04 Set Layer Polarity to dark*\n%LPD*%";
+char LAYER_POLARITY_CLEAR[] = "G04 Set Layer Polarity to dark*\n%LPC*%";
+             
                        
 char GCONV_HELP[]="convgerber: Protel gerber file converter\n"
 	"Written by Robert Murphy.\n"
@@ -117,6 +120,31 @@ int GCONV_init( struct gconv_glb *glb )
 int GCONV_write_header( FILE *fo )
 {
 	fprintf(fo,"%s\n", GCONV_HEADER);
+
+	return 0;
+}
+/**
+  * GCONV_set_layer_dark
+  *
+  * Set Layer Polarity to dark
+  * 
+  */
+int GCONV_set_layer_dark( FILE *fo )
+{
+	fprintf(fo,"%s\n", LAYER_POLARITY_DARK);
+
+	return 0;
+}
+
+/**
+  * GCONV_set_layer_clear
+  *
+  * Set Layer Polarity to clear
+  * 
+  */
+int GCONV_set_layer_clear( FILE *fo )
+{
+	fprintf(fo,"%s\n", LAYER_POLARITY_CLEAR);
 
 	return 0;
 }
@@ -258,7 +286,7 @@ int main(int argc, char **argv) {
 	 */
 	fa = fopen(glb.aperture_filename,"r");
 	if (!fa) {
-		fprintf(stderr,"Error: Cannot open aperture file '%s' for reading (%s)\n", glb.aperture_filename, strerror(errno));
+		fprintf(stderr,"Error: Cannot open aperture data file '%s' for reading (%s)\n", glb.aperture_filename, strerror(errno));
 		return 4;
 	}
 
@@ -275,6 +303,7 @@ int main(int argc, char **argv) {
 
 	GCONV_write_header (fo);
 	GCONV_write_apertures(fo ,fa);
+	GCONV_set_layer_dark(fo);
 	
 	//* Read source file a character at a time
 		 while (  ( gerber_read = fgetc(fi) ) != EOF ) {
