@@ -15,7 +15,7 @@ Usage: convgerber -i <input GERBER> -o <output file> [-g <optional drill guide].
 	-h : Display this help.
 
 Notes:
-Additionally a aperture.dat file is required that contains the same definitions in the newer format as the Autotrax STANDARD.APT file. Examples have been included in this repo for download.
+Additionally an aperture.dat file is required that contains the same definitions in the newer format as the Autotrax STANDARD.APT file. Examples have been included in this repo for download.
 
 To use the supplied aperture files:
 
@@ -23,7 +23,7 @@ To use the supplied aperture files:
 
 2: Copy the newer STANDARD.APT to your traxplot directory.
 
-3: Make sure aperture.dat is in the same directory that the files to convert.
+3: Make sure aperture.dat is in the same directory as the files to convert.
 
 Info about the GERBER format is available at:
 
