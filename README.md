@@ -5,10 +5,10 @@ The bash script does not have the drill guide import feature or the file checkin
 
 convgerber.c
 
-Usage: convgerber -i <input GERBER> -o <output file> [-d <optional drill guide]. [-v] [-h]
+Usage: convgerber -i <input GERBER> -o <output file> [-g <optional drill guide]. [-v] [-h]
 
 	-i <input gerber> : Specifies which file contains the gerber file to convert.
-	-d <input DRILL GUIDE> : Specifies which file contains the drill guide gerber to use.
+	-g <input DRILL GUIDE> : Specifies which file contains the drill guide gerber to use.
 	-o <output file> : specifies which file the converted gerber is to be saved to.
 
 	-v : Display current software version
