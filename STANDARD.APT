@@ -1,0 +1,66 @@
+; APERTURE FILE FORMAT
+;
+; <draft code> <shape> <xsize> <ysize> <hole size> <use>
+;
+; EXPLANATION OF PARAMETERS
+;
+; <draft code>   Code assigned to this aperture e.g. D14
+;                Note that this code must start with 'D'
+;                followed by the code number.
+;
+; <shape>        Can be any of the following shapes:
+;                         CIRCULAR
+;                         RECTANGULAR
+;                         SQUARE
+;                         OCTAGONAL
+;                         ROUNDRECT
+;                         CROSSHAIR
+;                         MOIRE
+;
+; <xsize>        size of aperture in the x direction in
+;                mils (thous).
+;
+; <ysize>        size of aperture in the y direction in
+;                mils (thous).
+;
+; <hole size>    size of hole in aperture in mils (thous).
+;                zero if no hole in aperture.
+;
+; <use>          specifies what the aperture can be used for.
+;                There are three possible settings:
+;                   LINE   can only be used to draw lines
+;                   FLASH  can only be used to flash pads
+;                   MULTI  can be used for either
+;                   blank  defaults to MULTI setting
+;
+D11 CIRCULAR     40  40  0
+D12 SQUARE       10  10  0
+D13 CIRCULAR     10  10  0
+D14 CIRCULAR     12  12  0
+D15 CIRCULAR     15  15  0
+D16 SQUARE       20  20  0
+D17 CIRCULAR     20  20  0
+D18 CIRCULAR     25  25  0
+D19 CIRCULAR     30  30  0
+D20 SQUARE       50  50  0
+D21 CIRCULAR     50  50  0
+D22 SQUARE       62  62  0
+D23 CIRCULAR     62  62  0
+D24 CIRCULAR     70  70  0
+D25 CIRCULAR     75  75  0
+D26 CIRCULAR     85  85  0
+D27 CIRCULAR    100 100  0
+D28 CIRCULAR    110 110  0
+D29 CIRCULAR    125 125  0
+D30 CIRCULAR    150 150  0
+D31 CIRCULAR    200 200  0
+D32 CIRCULAR    250 250  0
+D33 OCTAGONAL    70  70  0
+D34 OCTAGONAL   100 100  0
+D35 CIRCULAR      5    5 0
+D36 SQUARE        5    5 0
+D37 SQUARE       30   30 0 
+D38 CIRCULAR	  1    1 0
+D39 CIRCULAR     19   19 0
+D40 SQUARE       25   25 0
+

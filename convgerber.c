@@ -41,12 +41,16 @@ char  GCONV_HEADER[] = "G04 This is a Protel Autotrax gerber file converted by *
                        "%MOIN*%\n"
                        "%FSLAX23Y23*%\n"
                        "%IPPOS*%";
+
 char GCONV_FILE_SIG[] = "X0Y0*";                       
+
 char APT_LIST_START[] = "G04 APERTURE LIST*\n";
 char APT_LIST_END[] = "G04 APERTURE END LIST*\n";
+
 char LAYER_POLARITY_DARK[] = "G04 Set Layer Polarity to dark*\n%LPD*%";
-char LAYER_POLARITY_CLEAR[] = "G04 Set Layer Polarity to dark*\n%LPC*%";
+char LAYER_POLARITY_CLEAR[] = "G04 Set Layer Polarity to clear*\n%LPC*%";
              
+char STOP_MO2[] = "M02*";
                        
 char GCONV_HELP[]="convgerber: Protel gerber file converter\n"
 	"Written by Robert Murphy.\n"
@@ -56,9 +60,10 @@ char GCONV_HELP[]="convgerber: Protel gerber file converter\n"
 	"This is free software; you are free to change and redistribute it.\n"
 	"There is NO WARRANTY, to the extent permitted by law.\n"
 	"\n"
-	"Usage: convgerber -i <input GERBER> -o <output file> [-v] [-h]\n"
+	"Usage: convgerber -i <input GERBER> -o <output file> [-d <optional drill guide]. [-v] [-h]\n"
 	"\n"
 	"\t-i <input GERBER> : Specifies which file contains the gerber file to convert.\n"
+	"\t-d <input DRILL GUIDE> : Specifies which file contains the drill guide gerber to use.\n"
 	"\t-o <output file> : specifies which file the converted gerber is to be saved to.\n"
 	"\n"
 	"\t-v : Display current software version\n"
@@ -67,9 +72,11 @@ char GCONV_HELP[]="convgerber: Protel gerber file converter\n"
 
 struct gconv_glb {
 	int status;
+	int drill_guide_status;
 	char *input_filename;
 	char *output_filename;
 	char *aperture_filename;
+	char *drill_guide_filename;
 };                       
 
 /**
@@ -104,8 +111,10 @@ int GCONV_show_help( struct gconv_glb *glb ) {
 int GCONV_init( struct gconv_glb *glb )
 {
 	glb->status = 0;
+	glb->drill_guide_status = 0;
 	glb->input_filename = NULL;
 	glb->output_filename = NULL;
+	glb->drill_guide_filename = NULL;
 	glb->aperture_filename = "aperture.dat";
 
 	return 0;
@@ -148,13 +157,23 @@ int GCONV_set_layer_clear( FILE *fo )
 
 	return 0;
 }
+/**
+  * GCONV_write_stop_m02
+  *
+  * Terminate file with M02*
+  * 
+  */
+int GCONV_write_stop_m02( FILE *fo )
+{
+	fprintf(fo,"%s\n", STOP_MO2);
 
+	return 0;
+}
 /**
   * GCONV_check_input_file
   *
   * Check if input file is a Protel file
   * First 5 bytes should be "X0Y0*"
-  * Last byte should be BS (0x08)
   * 
   */
 int GCONV_check_input_file( FILE *fi )
@@ -196,7 +215,7 @@ int GCONV_parse_parameters( int argc, char **argv, struct gconv_glb *glb )
 	char c;
 
 	do {
-		c = getopt(argc, argv, "I:i:o:vh");
+		c = getopt(argc, argv, "i:o:g:vh");
 		switch (c) { 
 			case EOF: /* finished */
 				break;
@@ -209,6 +228,10 @@ int GCONV_parse_parameters( int argc, char **argv, struct gconv_glb *glb )
 				glb->output_filename = strdup(optarg);
 				break;
 
+			case 'g':
+				glb->drill_guide_status = 1;
+				glb->drill_guide_filename = strdup(optarg);
+				break;
 
 			case 'h':
 				GCONV_show_help(glb);
@@ -231,81 +254,18 @@ int GCONV_parse_parameters( int argc, char **argv, struct gconv_glb *glb )
 	} while (c != EOF); /* do */
 	return 0;
 }
-
 /**
-  * convgerber,  main body
+  * GCONV_do_conversion
   *
-  * This program inputs an existing Protel Autotrax Gerber file which
-  * does not conform with later formats
+  * Converts raw file to new format
   */
-int main(int argc, char **argv) {
-
-	struct gconv_glb glb;
-	FILE *fi, *fo, *fa;
-	int gerber_read;
-	int file_check;
-	int curr_pos;
-	
-	/* Initialize our global data structure */
-	GCONV_init(&glb);
+int GCONV_do_conversion( FILE* fi, FILE* fo) 
+{	
+		int gerber_read;
+		int curr_pos;
 
 
-	/* Decyper the command line parameters provided */
-	GCONV_parse_parameters(argc, argv, &glb);
-
-	/* Check the fundamental sanity of the variables in
-		the global data structure to ensure that we can
-		actually perform some meaningful work
-		*/
-	if ((glb.input_filename == NULL)) {
-		fprintf(stderr,"Error: Input filename is NULL.\n");
-		exit(1);
-	}
-	if ((glb.output_filename == NULL)) {
-		fprintf(stderr,"Error: Output filename is NULL.\n");
-		exit(1);
-	}
-	
-	/* Attempt to open input file as read only
-	 */ 
-	fi = fopen(glb.input_filename,"r");
-	if (!fi) {
-		fprintf(stderr,"Error: Cannot open input file '%s' for reading (%s)\n", glb.input_filename, strerror(errno));
-		return 3;
-	}
-	
-	/* Check if input file has a valid signature first 5 chars X0Y0*
-	 */
-	file_check = GCONV_check_input_file( fi );
-	if  ( file_check != 0 )  {
-		fprintf( stderr, "Error: %s does not appear to be a valid Autotrax gerber file\n", glb.input_filename );
-		return 6;
-	}
-	
-	/* Attempt to open the aperture file as read-only 
-	 */
-	fa = fopen(glb.aperture_filename,"r");
-	if (!fa) {
-		fprintf(stderr,"Error: Cannot open aperture data file '%s' for reading (%s)\n", glb.aperture_filename, strerror(errno));
-		return 4;
-	}
-
-	/* Attempt to open the output file in write mode
-		(no appending is done, any existing file will be
-		overwritten
-		*/
-	fo = fopen(glb.output_filename,"w");
-	if (!fo) {
-		fprintf(stderr,"Error: Cannot open output file '%s' for writing (%s)\n", glb.output_filename, strerror(errno));
-		return 5;
-	}
-	
-
-	GCONV_write_header (fo);
-	GCONV_write_apertures(fo ,fa);
-	GCONV_set_layer_dark(fo);
-	
-	//* Read source file a character at a time
+//* Read source file a character at a time
 		 while (  ( gerber_read = fgetc(fi) ) != EOF ) {
 				
 
@@ -326,7 +286,6 @@ int main(int argc, char **argv) {
 //* Should check for "illegal characters"
 					case 'X' :
 					case 'Y' :
-					case 'M' :
 					case 'D' :
 					case '0' :
 					case '1' :
@@ -340,12 +299,122 @@ int main(int argc, char **argv) {
 					case '9' :
 						fputc( gerber_read, fo );
 						break;
+					case 'M' :
+						return 0;
 					default :
 						curr_pos=(ftell(fi) -1);
 						fprintf( stderr, "Error: Illegal character found.\n Hex value = 0x%.2x\n At position 0x%.8x\n", gerber_read, curr_pos);
 						return 7;
 					}
-			}
+	}
+	return 0;
+}
+/**
+  * convgerber,  main body
+  *
+  * This program inputs an existing Protel Autotrax Gerber file which
+  * does not conform with later formats
+  */
+int main(int argc, char **argv) {
+
+	struct gconv_glb glb;
+	FILE *fi, *fo, *fa, *fg;
+	int file_check;
+	
+	/* Initialize our global data structure */
+	GCONV_init(&glb);
+
+
+	/* Decyper the command line parameters provided */
+	GCONV_parse_parameters(argc, argv, &glb);
+	
+//*	printf("Input %s\n Output %s\n Guide %s\n Guide status %d\n", glb.input_filename, glb.output_filename, glb.drill_guide_filename, glb.drill_guide_status);
+
+	/* Check the fundamental sanity of the variables in
+		the global data structure to ensure that we can
+		actually perform some meaningful work
+		*/
+	if ((glb.input_filename == NULL)) {
+		fprintf(stderr,"Error: Input filename is NULL.\n");
+		exit(1);
+	}
+	if ((glb.output_filename == NULL)) {
+		fprintf(stderr,"Error: Output filename is NULL.\n");
+		exit(1);
+	}
+	
+	if ((glb.drill_guide_filename == NULL) && (glb.drill_guide_status != 0)) {
+		fprintf(stderr,"Error: Drill guide filename is NULL.\n");
+		exit(1);
+	}		
+	
+	/* Attempt to open input file as read only
+	 */ 
+	fi = fopen(glb.input_filename,"r");
+	if (!fi) {
+		fprintf(stderr,"Error: Cannot open input file '%s' for reading (%s)\n", glb.input_filename, strerror(errno));
+		return 3;
+	}
+	
+	/* Check if input file has a valid signature first 5 chars X0Y0*
+	 */
+	file_check = GCONV_check_input_file( fi );
+	if  ( file_check != 0 )  {
+		fprintf( stderr, "Error: %s does not appear to be a valid Autotrax gerber file\n", glb.input_filename );
+		return 6;
+	}
+
+	/* Attempt to open drill guide  file as read only
+	 */ 
+	if ( glb.drill_guide_status == 1 ) {
+		fg = fopen(glb.drill_guide_filename,"r");
+		if (!fg) {
+			fprintf(stderr,"Error: Cannot open input file '%s' for reading (%s)\n", glb.drill_guide_filename, strerror(errno));
+			return 3;
+		}
+
+	/* Check if drill guide file has a valid signature first 5 chars X0Y0*
+	 */
+	file_check = GCONV_check_input_file( fg );
+	if  ( file_check != 0 )  {
+		fprintf( stderr, "Error: %s does not appear to be a valid Autotrax gerber file\n", glb.drill_guide_filename );
+		return 6;
+	}
+}
+	
+	/* Attempt to open the aperture file as read-only 
+	 */
+	fa = fopen(glb.aperture_filename,"r");
+	if (!fa) {
+		fprintf(stderr,"Error: Cannot open aperture data file '%s' for reading (%s)\n", glb.aperture_filename, strerror(errno));
+		return 4;
+	}
+
+	/* Attempt to open the output file in write mode
+		(no appending is done, any existing file will be
+		overwritten
+		*/
+	fo = fopen(glb.output_filename,"w");
+	if (!fo) {
+		fprintf(stderr,"Error: Cannot open output file '%s' for writing (%s)\n", glb.output_filename, strerror(errno));
+		return 5;
+	}
+	
+	
+	
+
+	GCONV_write_header (fo);
+	GCONV_write_apertures(fo ,fa);
+	GCONV_set_layer_dark(fo);
+	GCONV_do_conversion(fi, fo);
+	if ( glb.drill_guide_status == 1 ) {
+		fprintf( fo, "G04 Guides for drilling holes *\n");
+		GCONV_set_layer_clear(fo);
+		GCONV_do_conversion(fg, fo);
+	}
+	GCONV_write_stop_m02(fo);
+	
+
 	fclose(fo);
 	fclose(fi);
 	fclose(fa);
