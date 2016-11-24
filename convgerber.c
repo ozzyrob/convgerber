@@ -41,10 +41,12 @@
 #define ERR_NOT_OPEN_INPUT 0x01
 #define ERR_NOT_OPEN_DRILL_GUIDE 0x01
 #define ERR_NOT_OPEN_APERTURE 0x01
+#define ERR_NOT_OPEN_TXT_OVL 0x01
 #define ERR_NOT_OPEN_OUTPUT 0x01
 
 #define ERR_NOT_VALID_INPUT 0x01
 #define ERR_NOT_VALID_DRILL_GUIDE 0x01
+#define ERR_NOT_VALID_TXT_OVL 0x01
 
 #define ERR_GET_FILE_SIZE 0x01
 
@@ -95,10 +97,12 @@ const char GCONV_HELP[]="convgerber: Protel gerber file converter\n"
 struct gconv_glb {
 	int status;
 	int drill_guide_status;
+	int txt_ovl_status;
 	char *input_filename;
 	char *output_filename;
 	char *aperture_filename;
 	char *drill_guide_filename;
+	char *txt_ovl_filename;
 };                       
 
 /**
@@ -134,10 +138,12 @@ int GCONV_init( struct gconv_glb *glb )
 {
 	glb->status = 0;
 	glb->drill_guide_status = 0;
+	glb->txt_ovl_status = 0;
 	glb->input_filename = NULL;
 	glb->output_filename = NULL;
 	glb->drill_guide_filename = NULL;
 	glb->aperture_filename = "aperture.dat";
+	glb->txt_ovl_filename = NULL;
 
 	return 0;
 }
@@ -154,7 +160,7 @@ int GCONV_parse_parameters( int argc, char **argv, struct gconv_glb *glb )
 	char c;
 
 	do {
-		c = getopt(argc, argv, "i:o:g:vh");
+		c = getopt(argc, argv, "i:o:g:l:vh");
 		switch (c) { 
 			case EOF: /* finished */
 				break;
@@ -170,6 +176,11 @@ int GCONV_parse_parameters( int argc, char **argv, struct gconv_glb *glb )
 			case 'g':
 				glb->drill_guide_status = 1;
 				glb->drill_guide_filename = strdup(optarg);
+				break;
+
+			case 'l':
+				glb->txt_ovl_status = 1;
+				glb->txt_ovl_filename = strdup(optarg);
 				break;
 
 			case 'h':
@@ -413,7 +424,7 @@ int GCONV_write_stop_m02( FILE *f_new )
 int main(int argc, char **argv) {
 
 	struct gconv_glb glb;
-	FILE *f_input, *f_output, *f_aperture, *f_drill_guide;
+	FILE *f_input, *f_output, *f_aperture, *f_drill_guide, *f_txt_ovl;
 	int file_check;
 	
 	/* Initialize our global data structure */
@@ -442,6 +453,12 @@ int main(int argc, char **argv) {
 		exit(1);
 	}		
 	
+	if ((glb.txt_ovl_filename == NULL) && (glb.txt_ovl_status != 0)) {
+		fprintf(stderr,"Error: Text overlay filename is NULL.\n");
+		exit(1);
+	}
+
+//* Input		
 	/* Attempt to open input file as read only */ 
 	f_input = fopen(glb.input_filename,"r");
 	if (!f_input) {
@@ -456,22 +473,41 @@ int main(int argc, char **argv) {
 		return ERR_NOT_VALID_INPUT;
 	}
 
+//* Drill Guide
 	/* Attempt to open drill guide  file as read only */ 
 	if ( glb.drill_guide_status == 1 ) {
 		f_drill_guide = fopen(glb.drill_guide_filename,"r");
-		if (!f_drill_guide) {
-			fprintf(stderr,"Error: Cannot open input file '%s' for reading (%s)\n", glb.drill_guide_filename, strerror(errno));
-			return ERR_NOT_OPEN_DRILL_GUIDE;
-		}
+			if (!f_drill_guide) {
+				fprintf(stderr,"Error: Cannot open input file '%s' for reading (%s)\n", glb.drill_guide_filename, strerror(errno));
+				return ERR_NOT_OPEN_DRILL_GUIDE;
+	}
 
 	/* Check if drill guide file is valid */
 	file_check = GCONV_check_input_file( f_drill_guide );
-	if  ( file_check != 0 )  {
-		fprintf( stderr, "Error: %s does not appear to be a valid Autotrax gerber file\n", glb.drill_guide_filename );
-		return ERR_NOT_VALID_DRILL_GUIDE;
+		if  ( file_check != 0 )  {
+			fprintf( stderr, "Error: %s does not appear to be a valid Autotrax gerber file\n", glb.drill_guide_filename );
+			return ERR_NOT_VALID_DRILL_GUIDE;
+		}
 	}
-}
-	
+
+//* Overlay
+	/* Attempt to open overlay  file as read only */ 
+	if ( glb.txt_ovl_status == 1 ) {
+		f_txt_ovl = fopen(glb.txt_ovl_filename,"r");
+		if (!f_txt_ovl) {
+			fprintf(stderr,"Error: Cannot open input file '%s' for reading (%s)\n", glb.txt_ovl_filename, strerror(errno));
+			return ERR_NOT_OPEN_TXT_OVL;
+			}
+
+	/* Check if overlay file is valid */
+	file_check = GCONV_check_input_file( f_txt_ovl );
+	if  ( file_check != 0 )  {
+		fprintf( stderr, "Error: %s does not appear to be a valid Autotrax gerber file\n", glb.txt_ovl_filename );
+		return ERR_NOT_VALID_TXT_OVL;
+		}
+	}
+
+//* Aperture	
 	/* Attempt to open the aperture file as read-only */
 	f_aperture = fopen(glb.aperture_filename,"r");
 	if (!f_aperture) {
@@ -479,6 +515,7 @@ int main(int argc, char **argv) {
 		return ERR_NOT_OPEN_APERTURE;
 	}
 
+//* Output
 	/* Attempt to open the output file in write mode */
 	/*	(no appending is done, any existing file will be */
 	/*	overwritten */
@@ -487,26 +524,33 @@ int main(int argc, char **argv) {
 		fprintf(stderr,"Error: Cannot open output file '%s' for writing (%s)\n", glb.output_filename, strerror(errno));
 		return ERR_NOT_OPEN_OUTPUT;
 	}
-	
-	
-	
+		
 	/* Write header & aperture definitions to output file */
 	GCONV_write_header (f_output);
 	GCONV_write_apertures(f_output ,f_aperture);
 
-	/* Set layer to "dark" as drill guide is set to "clear" */
+	/* Set layer to "dark" as drill guide & overlay is set to "clear" */
 	GCONV_set_layer_dark(f_output);
 	GCONV_convert_format(f_input, f_output);
 
 	/* If given a drill guide file convert & merge */	
 	if ( glb.drill_guide_status == 1 ) {
-		fprintf( f_output, "G04 Guides for drilling holes *\n");
+		fprintf( f_output, "G04 Drill guide section *\n");
 		/* Set layer to "clear" so drill guides show up */
 		GCONV_set_layer_clear(f_output);
 		GCONV_convert_format(f_drill_guide, f_output);
 		fclose(f_drill_guide);
 	}
-
+	
+	/* If given a txt overlay file convert & merge */	
+	if ( glb.txt_ovl_status == 1 ) {
+		fprintf( f_output, "G04 Overlay section *\n");
+		/* Set layer to "clear" so overlay show up */
+		GCONV_set_layer_clear(f_output);
+		GCONV_convert_format(f_txt_ovl, f_output);
+		fclose(f_txt_ovl);
+	}
+	
 	/* Write M02 "stop" code */	
 	GCONV_write_stop_m02(f_output);
 	
@@ -514,6 +558,7 @@ int main(int argc, char **argv) {
 	fclose(f_output);
 	fclose(f_input);
 	fclose(f_aperture);
+	
 	/* Display message of success */
 	printf("Autotrax file successfully converted\n");
 	return 0;
