@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <errno.h>
 
+//* Not printable characters
 #define BS 0x08
 #define LF 0x0A
 #define FF 0x0C
@@ -32,43 +33,64 @@
 #define SPACE 0x20
 #define GERBER_TERM 0x2A
 
+//* Error number return values
+#define ERR_SIZE_WRONG 0x08
+#define ERR_SIG_WRONG 0x09
+#define ERR_NO_BS_MAKER 0x0A 
+
+#define ERR_NOT_OPEN_INPUT 0x01
+#define ERR_NOT_OPEN_DRILL_GUIDE 0x01
+#define ERR_NOT_OPEN_APERTURE 0x01
+#define ERR_NOT_OPEN_OUTPUT 0x01
+
+#define ERR_NOT_VALID_INPUT 0x01
+#define ERR_NOT_VALID_DRILL_GUIDE 0x01
+
+#define ERR_GET_FILE_SIZE 0x01
+
+#define ERR_ILLEGAL_CHAR 0x01
+#define ERR_MISSING_M02 0x01
+
 #define GCONV_VERSION "0.0.1"
-char  GCONV_HEADER[] = "G04 This is a Protel Autotrax gerber file converted by *\n"
-					   "G04 convgerber V-0.0.1 *\n"
-					   "G04 More information is available about convgerber at *\n"
-                       "G04 https://github.com/ozzyrob/convgerber *\n"
-                       "G04 --End of header info--*\n"
-                       "%MOIN*%\n"
-                       "%FSLAX23Y23*%\n"
-                       "%IPPOS*%";
 
-char GCONV_FILE_SIG[] = "X0Y0*";                       
+const char  GCONV_HEADER[] = "G04 This is a Protel Autotrax gerber file converted by *\n"
+					         "G04 convgerber V-0.0.1 *\n"
+					         "G04 More information is available about convgerber at *\n"
+                             "G04 https://github.com/ozzyrob/convgerber *\n"
+                             "G04 --End of header info--*\n"
+                             "%MOIN*%\n"
+                             "%FSLAX23Y23*%\n"
+                             "%IPPOS*%";
 
-char APT_LIST_START[] = "G04 APERTURE LIST*\n";
-char APT_LIST_END[] = "G04 APERTURE END LIST*\n";
-
-char LAYER_POLARITY_DARK[] = "G04 Set Layer Polarity to dark*\n%LPD*%";
-char LAYER_POLARITY_CLEAR[] = "G04 Set Layer Polarity to clear*\n%LPC*%";
-             
-char STOP_MO2[] = "M02*";
                        
-char GCONV_HELP[]="convgerber: Protel gerber file converter\n"
-	"Written by Robert Murphy.\n"
-	"This software is available at https://github.com/ozzyrob/convgerber\n"
-	"License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
-	"\n"
-	"This is free software; you are free to change and redistribute it.\n"
-	"There is NO WARRANTY, to the extent permitted by law.\n"
-	"\n"
-	"Usage: convgerber -i <input GERBER> -o <output file> [-g <optional drill guide]. [-v] [-h]\n"
-	"\n"
-	"\t-i <input GERBER> : Specifies which file contains the gerber file to convert.\n"
-	"\t-g <input DRILL GUIDE> : Specifies which file contains the drill guide gerber to use.\n"
-	"\t-o <output file> : specifies which file the converted gerber is to be saved to.\n"
-	"\n"
-	"\t-v : Display current software version\n"
-	"\t-h : Display this help.\n"
-	"\n";
+
+const char APT_LIST_START[] = "G04 BEGIN APERTURE LIST*\n";
+const char APT_LIST_END[] = "G04 END APERTURE LIST*\n";
+
+const char LAYER_POLARITY_DARK[] = "G04 Set Layer Polarity to dark*\n%LPD*%\n";
+const char LAYER_POLARITY_CLEAR[] = "G04 Set Layer Polarity to clear*\n%LPC*\n%";
+             
+const char STOP_MO2[] = "M02*\n";
+
+const char AUTOTRAX_FILE_START_STRING[] = "X0Y0*";
+                       
+const char GCONV_HELP[]="convgerber: Protel gerber file converter\n"
+	                    "Written by Robert Murphy.\n"
+	                    "This software is available at https://github.com/ozzyrob/convgerber\n"
+	                    "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
+	                    "\n"
+	                    "This is free software; you are free to change and redistribute it.\n"
+	                    "There is NO WARRANTY, to the extent permitted by law.\n"
+	                    "\n"
+	                    "Usage: convgerber -i <input GERBER> -o <output file> [-g <optional drill guide]. [-v] [-h]\n"
+	                    "\n"
+	                    "\t-i <input GERBER> : Specifies which file contains the gerber file to convert.\n"
+	                    "\t-g <input DRILL GUIDE> : Specifies which file contains the drill guide gerber to use.\n"
+	                    "\t-o <output file> : specifies which file the converted gerber is to be saved to.\n"
+	                    "\n"
+	                    "\t-v : Display current software version\n"
+	                    "\t-h : Display this help.\n"
+	                    "\n";
 
 struct gconv_glb {
 	int status;
@@ -121,89 +143,6 @@ int GCONV_init( struct gconv_glb *glb )
 }
 
 /**
-  * GCONV_write_header
-  *
-  * Writer header to converted gerber file
-  * 
-  */
-int GCONV_write_header( FILE *fo )
-{
-	fprintf(fo,"%s\n", GCONV_HEADER);
-
-	return 0;
-}
-/**
-  * GCONV_set_layer_dark
-  *
-  * Set Layer Polarity to dark
-  * 
-  */
-int GCONV_set_layer_dark( FILE *fo )
-{
-	fprintf(fo,"%s\n", LAYER_POLARITY_DARK);
-
-	return 0;
-}
-
-/**
-  * GCONV_set_layer_clear
-  *
-  * Set Layer Polarity to clear
-  * 
-  */
-int GCONV_set_layer_clear( FILE *fo )
-{
-	fprintf(fo,"%s\n", LAYER_POLARITY_CLEAR);
-
-	return 0;
-}
-/**
-  * GCONV_write_stop_m02
-  *
-  * Terminate file with M02*
-  * 
-  */
-int GCONV_write_stop_m02( FILE *fo )
-{
-	fprintf(fo,"%s\n", STOP_MO2);
-
-	return 0;
-}
-/**
-  * GCONV_check_input_file
-  *
-  * Check if input file is a Protel file
-  * First 5 bytes should be "X0Y0*"
-  * 
-  */
-int GCONV_check_input_file( FILE *fi )
-{
-	char file_sig[6];
-//* File should start with X0Y0*
-	fgets( file_sig, 6, fi);
-	fseek (fi, 0, SEEK_SET);
-	return ( strcmp ( GCONV_FILE_SIG, file_sig ) );
-}
-
-/**
-  * GCONV_write_apperatures
-  *
-  * Writer header to converted gerber file
-  * 
-  */
-int GCONV_write_apertures( FILE *fo, FILE *fa )
-{
-		int aperture_read;
-		fprintf( fo, APT_LIST_START );
-		
-		while (  ( aperture_read = fgetc(fa) ) != EOF ) { 
-			
-			fputc( aperture_read, fo );
-		}
-		fprintf( fo, APT_LIST_END );
-	return 0;
-}
-/**
   * GCONV_parse_parameters
   *
   * Parses the command line parameters and sets the
@@ -255,60 +194,216 @@ int GCONV_parse_parameters( int argc, char **argv, struct gconv_glb *glb )
 	return 0;
 }
 /**
-  * GCONV_do_conversion
+ * GCONV_get_file_size
+ * return size of file in bytes
+ */ 
+
+int GCONV_get_file_size (FILE* fp)
+{
+	struct stat st;
+	int fd;
+
+	/* Convert file pointer to file number (integer) */
+	fd = fileno(fp);
+	/* Get info about file */
+	if ( fstat(fd, &st) ) { 
+        printf("\nfstat error: [%s]\n",strerror(errno));  
+        return -1; 
+    }
+    /* Return size of file */ 
+	return st.st_size;
+}
+
+/**
+  * GCONV_check_input_file
+  *
+  * Check if input file is a Protel file
+  * First 5 bytes should be "X0Y0*"
+  * Files appear to written in 512 byte
+  * blocks
+  * BS (0x08) appears to be the marker for
+  * the beginning of the last block
+  * file length mod 512 should be 0
+  * byte at file length less 512 should be BS (0x08)
+  * first five bytes should be X0Y0*
+  * If the file passes those 3 tests we should
+  * have a vaild file, barring any illegal characters
+  * 
+  */ 
+int GCONV_check_input_file( FILE* fp )
+{
+	char file_sig[6];
+	int file_size;
+	
+	/* Attempt to get file size */
+	file_size = GCONV_get_file_size(fp);
+	if ( file_size == -1 ) {
+		return ERR_GET_FILE_SIZE;
+	}
+
+	/* Is file size made up of full 512 byte blocks */
+	else if ( file_size % 2 != 0 ) {
+		return ERR_SIZE_WRONG;
+	}
+	
+	/* Get first 5 bytes as a string */
+	fgets( file_sig, 6, fp);
+	/* Move to beginning of last 512 block */
+	fseek (fp, -512, SEEK_END);
+
+	/* check for X0Y0* at begining of file */	
+	if ( strcmp(AUTOTRAX_FILE_START_STRING, file_sig) !=0  ) {
+		return ERR_SIG_WRONG;
+	}
+	
+	//* check for BS at beginning of last 512 byte block
+	if ( fgetc(fp) != BS ) {
+		return ERR_NO_BS_MAKER;
+	}
+	
+	/* Return file pointer to beginning of file */
+	fseek (fp, 0, SEEK_SET);
+	return 0;
+}
+
+/**
+  * GCONV_write_header
+  *
+  * Writer header to output file
+  * 
+  */
+int GCONV_write_header( FILE *f_new )
+{
+	fprintf(f_new,"%s\n", GCONV_HEADER);
+
+	return 0;
+}
+/**
+  * GCONV_write_apperatures
+  *
+  * Writer aperture definitions to output file
+  * 
+  */
+int GCONV_write_apertures( FILE *f_new, FILE *f_apt )
+{
+		int aperture_read;
+		fprintf( f_new, APT_LIST_START );
+		
+		while (  ( aperture_read = fgetc(f_apt) ) != EOF ) { 
+			
+			fputc( aperture_read, f_new );
+		}
+		fprintf( f_new, APT_LIST_END );
+	return 0;
+}
+/**
+  * GCONV_set_layer_dark
+  *
+  * Set Layer Polarity to dark
+  * 
+  */
+int GCONV_set_layer_dark( FILE *f_new )
+{
+	fprintf(f_new,"%s", LAYER_POLARITY_DARK);
+
+	return 0;
+}
+/**
+  * GCONV_convert_format
   *
   * Converts raw file to new format
+  * Removes white space &
+  * adds NEWLINE after each "*". Function ends
+  * when "M" is reached as "M02" designates end
+  * of data
+  * Was going to read file by 512 blocks
+  * now thinking reading with fgetc allows
+  * picking up of illegal characters at the
+  * expense of slightly longer conversion time
   */
-int GCONV_do_conversion( FILE* fi, FILE* fo) 
+int GCONV_convert_format( FILE* f_old, FILE* f_new) 
 {	
 		int gerber_read;
 		int curr_pos;
 
 
-//* Read source file a character at a time
-		 while (  ( gerber_read = fgetc(fi) ) != EOF ) {
+		/* Read source file a character at a time */
+		 while (  ( gerber_read = fgetc(f_old) ) != EOF ) {
 				
 
 				switch (gerber_read) {
 					
-//* If we have "*" write "*\n" to destination file					
+		/* If we have "*" write "*\n" to destination file */					
 					case GERBER_TERM:
-						fprintf(fo, "*\n"); 
+						fprintf(f_new, "*\n"); 
 						break;
-//* Ignore Backspace, Line feed (newline), Form feed, Carriage return & space
+		/* Ignore Backspace, Line feed (newline), Form feed, Carriage return & space */
 					case BS :
 					case LF :
 					case FF :
 					case CR :
 					case SPACE :
 						break;
-//* Write X,Y, cordinates, D-codes, to destination file
-//* Should check for "illegal characters"
+		/* Write X,Y, cordinates, D-codes, to destination file */
+ 
 					case 'X' :
 					case 'Y' :
 					case 'D' :
-					case '0' :
-					case '1' :
-					case '2' :
-					case '3' :
-					case '4' :
-					case '5' :
-					case '6' :
-					case '7' :
-					case '8' :
-					case '9' :
-						fputc( gerber_read, fo );
+					/* Covers 0 to 9 */					
+					case '0' ... '9':
+						fputc( gerber_read, f_new );
 						break;
+
+		/* M02 designates end of program we can exit */
+		/* M02 is not written here as this would not */
+		/* allow the program to combine the drillguide file */ 
 					case 'M' :
 						return 0;
-					default :
-						curr_pos=(ftell(fi) -1);
+
+		/* If we get here we have an "illegal character" */ 					
+						default :
+						curr_pos=(ftell(f_old) -1);
 						fprintf( stderr, "Error: Illegal character found.\n Hex value = 0x%.2x\n At position 0x%.8x\n", gerber_read, curr_pos);
-						return 7;
+						return ERR_ILLEGAL_CHAR;
 					}
 	}
+	/* if we get here it means we are missing our M02 code */
+	return ERR_MISSING_M02;
+}
+
+
+/**
+  * GCONV_set_layer_clear
+  *
+  * Set Layer Polarity to clear
+  * 
+  */
+int GCONV_set_layer_clear( FILE *f_new )
+{
+	fprintf(f_new,"%s", LAYER_POLARITY_CLEAR);
+
 	return 0;
 }
+
+/**
+  * GCONV_write_stop_m02
+  *
+  * Terminate file with M02*
+  * 
+  */
+int GCONV_write_stop_m02( FILE *f_new )
+{
+	fprintf(f_new,"%s", STOP_MO2);
+
+	return 0;
+}
+
+
+
+
+
+
+
 /**
   * convgerber,  main body
   *
@@ -318,17 +413,16 @@ int GCONV_do_conversion( FILE* fi, FILE* fo)
 int main(int argc, char **argv) {
 
 	struct gconv_glb glb;
-	FILE *fi, *fo, *fa, *fg;
+	FILE *f_input, *f_output, *f_aperture, *f_drill_guide;
 	int file_check;
 	
 	/* Initialize our global data structure */
 	GCONV_init(&glb);
 
 
-	/* Decyper the command line parameters provided */
+	/* Parse & decypher the command line parameters provided */
 	GCONV_parse_parameters(argc, argv, &glb);
 	
-//*	printf("Input %s\n Output %s\n Guide %s\n Guide status %d\n", glb.input_filename, glb.output_filename, glb.drill_guide_filename, glb.drill_guide_status);
 
 	/* Check the fundamental sanity of the variables in
 		the global data structure to ensure that we can
@@ -348,76 +442,79 @@ int main(int argc, char **argv) {
 		exit(1);
 	}		
 	
-	/* Attempt to open input file as read only
-	 */ 
-	fi = fopen(glb.input_filename,"r");
-	if (!fi) {
+	/* Attempt to open input file as read only */ 
+	f_input = fopen(glb.input_filename,"r");
+	if (!f_input) {
 		fprintf(stderr,"Error: Cannot open input file '%s' for reading (%s)\n", glb.input_filename, strerror(errno));
-		return 3;
+		return ERR_NOT_OPEN_INPUT;
 	}
 	
-	/* Check if input file has a valid signature first 5 chars X0Y0*
-	 */
-	file_check = GCONV_check_input_file( fi );
+	/* Check if input file is valid */
+	file_check = GCONV_check_input_file( f_input );
 	if  ( file_check != 0 )  {
 		fprintf( stderr, "Error: %s does not appear to be a valid Autotrax gerber file\n", glb.input_filename );
-		return 6;
+		return ERR_NOT_VALID_INPUT;
 	}
 
-	/* Attempt to open drill guide  file as read only
-	 */ 
+	/* Attempt to open drill guide  file as read only */ 
 	if ( glb.drill_guide_status == 1 ) {
-		fg = fopen(glb.drill_guide_filename,"r");
-		if (!fg) {
+		f_drill_guide = fopen(glb.drill_guide_filename,"r");
+		if (!f_drill_guide) {
 			fprintf(stderr,"Error: Cannot open input file '%s' for reading (%s)\n", glb.drill_guide_filename, strerror(errno));
-			return 3;
+			return ERR_NOT_OPEN_DRILL_GUIDE;
 		}
 
-	/* Check if drill guide file has a valid signature first 5 chars X0Y0*
-	 */
-	file_check = GCONV_check_input_file( fg );
+	/* Check if drill guide file is valid */
+	file_check = GCONV_check_input_file( f_drill_guide );
 	if  ( file_check != 0 )  {
 		fprintf( stderr, "Error: %s does not appear to be a valid Autotrax gerber file\n", glb.drill_guide_filename );
-		return 6;
+		return ERR_NOT_VALID_DRILL_GUIDE;
 	}
 }
 	
-	/* Attempt to open the aperture file as read-only 
-	 */
-	fa = fopen(glb.aperture_filename,"r");
-	if (!fa) {
+	/* Attempt to open the aperture file as read-only */
+	f_aperture = fopen(glb.aperture_filename,"r");
+	if (!f_aperture) {
 		fprintf(stderr,"Error: Cannot open aperture data file '%s' for reading (%s)\n", glb.aperture_filename, strerror(errno));
-		return 4;
+		return ERR_NOT_OPEN_APERTURE;
 	}
 
-	/* Attempt to open the output file in write mode
-		(no appending is done, any existing file will be
-		overwritten
-		*/
-	fo = fopen(glb.output_filename,"w");
-	if (!fo) {
+	/* Attempt to open the output file in write mode */
+	/*	(no appending is done, any existing file will be */
+	/*	overwritten */
+	f_output = fopen(glb.output_filename,"w");
+	if (!f_output) {
 		fprintf(stderr,"Error: Cannot open output file '%s' for writing (%s)\n", glb.output_filename, strerror(errno));
-		return 5;
+		return ERR_NOT_OPEN_OUTPUT;
 	}
 	
 	
 	
+	/* Write header & aperture definitions to output file */
+	GCONV_write_header (f_output);
+	GCONV_write_apertures(f_output ,f_aperture);
 
-	GCONV_write_header (fo);
-	GCONV_write_apertures(fo ,fa);
-	GCONV_set_layer_dark(fo);
-	GCONV_do_conversion(fi, fo);
+	/* Set layer to "dark" as drill guide is set to "clear" */
+	GCONV_set_layer_dark(f_output);
+	GCONV_convert_format(f_input, f_output);
+
+	/* If given a drill guide file convert & merge */	
 	if ( glb.drill_guide_status == 1 ) {
-		fprintf( fo, "G04 Guides for drilling holes *\n");
-		GCONV_set_layer_clear(fo);
-		GCONV_do_conversion(fg, fo);
+		fprintf( f_output, "G04 Guides for drilling holes *\n");
+		/* Set layer to "clear" so drill guides show up */
+		GCONV_set_layer_clear(f_output);
+		GCONV_convert_format(f_drill_guide, f_output);
+		fclose(f_drill_guide);
 	}
-	GCONV_write_stop_m02(fo);
-	
 
-	fclose(fo);
-	fclose(fi);
-	fclose(fa);
+	/* Write M02 "stop" code */	
+	GCONV_write_stop_m02(f_output);
+	
+	/* Close open files */
+	fclose(f_output);
+	fclose(f_input);
+	fclose(f_aperture);
+	/* Display message of success */
 	printf("Autotrax file successfully converted\n");
 	return 0;
 }	
