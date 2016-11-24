@@ -68,7 +68,7 @@ const char APT_LIST_START[] = "G04 BEGIN APERTURE LIST*\n";
 const char APT_LIST_END[] = "G04 END APERTURE LIST*\n";
 
 const char LAYER_POLARITY_DARK[] = "G04 Set Layer Polarity to dark*\n%LPD*%\n";
-const char LAYER_POLARITY_CLEAR[] = "G04 Set Layer Polarity to clear*\n%LPC*\n%";
+const char LAYER_POLARITY_CLEAR[] = "G04 Set Layer Polarity to clear*\n%LPC*%\n";
              
 const char STOP_MO2[] = "M02*\n";
 
